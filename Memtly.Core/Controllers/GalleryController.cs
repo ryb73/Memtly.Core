@@ -437,8 +437,29 @@ namespace Memtly.Core.Controllers
                         return Json(new { success = false, uploaded = 0, errors = new List<string>() { _localizer["Invalid_Secret_Key_Warning"].Value } });
                     }
 
-                    string uploadedBy = HttpContext.Session.GetString(SessionKey.Viewer.Identity)?.Trim() ?? "Anonymous";
-                    string uploaderEmail = HttpContext.Session.GetString(SessionKey.Viewer.EmailAddress)?.Trim() ?? "Anonymous";
+                    var sessionUploaderName = HttpContext.Session.GetString(SessionKey.Viewer.Identity)?.Trim();
+                    var sessionUploaderEmail = HttpContext.Session.GetString(SessionKey.Viewer.EmailAddress)?.Trim();
+                    string uploadedBy = string.IsNullOrWhiteSpace(sessionUploaderName) ? "Anonymous" : sessionUploaderName;
+                    string uploaderEmail = string.IsNullOrWhiteSpace(sessionUploaderEmail) ? "Anonymous" : sessionUploaderEmail;
+
+                    // Falls back to the client-cached identity when the session never got one (e.g. /Home/SetIdentity couldn't be reached while offline).
+                    if (string.IsNullOrWhiteSpace(sessionUploaderName))
+                    {
+                        var clientUploaderName = (Request?.Form?.FirstOrDefault(x => string.Equals("UploaderName", x.Key, StringComparison.OrdinalIgnoreCase)).Value)?.ToString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(clientUploaderName) && !HtmlSanitizer.MayContainXss(clientUploaderName))
+                        {
+                            uploadedBy = HtmlSanitizer.Sanitize(clientUploaderName);
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(sessionUploaderEmail))
+                    {
+                        var clientUploaderEmail = (Request?.Form?.FirstOrDefault(x => string.Equals("UploaderEmail", x.Key, StringComparison.OrdinalIgnoreCase)).Value)?.ToString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(clientUploaderEmail) && !HtmlSanitizer.MayContainXss(clientUploaderEmail))
+                        {
+                            uploaderEmail = HtmlSanitizer.Sanitize(clientUploaderEmail);
+                        }
+                    }
 
                     var loggedInUserId = _identity.GetUserId(User);
                     var loggedInUser = loggedInUserId > 0 ? await _database.GetUser(loggedInUserId) : null;
@@ -601,7 +622,18 @@ namespace Memtly.Core.Controllers
                         return Json(new { success = false, uploaded = 0, errors = new List<string>() { _localizer["Invalid_Secret_Key_Warning"].Value } });
                     }
 
-                    var uploadedBy = HttpContext.Session.GetString(SessionKey.Viewer.Identity) ?? "Anonymous";
+                    var sessionUploaderName = HttpContext.Session.GetString(SessionKey.Viewer.Identity)?.Trim();
+                    var uploadedBy = string.IsNullOrWhiteSpace(sessionUploaderName) ? "Anonymous" : sessionUploaderName;
+
+                    // Falls back to the client-cached identity when the session never got one (e.g. /Home/SetIdentity couldn't be reached while offline).
+                    if (string.IsNullOrWhiteSpace(sessionUploaderName))
+                    {
+                        var clientUploaderName = (Request?.Form?.FirstOrDefault(x => string.Equals("UploaderName", x.Key, StringComparison.OrdinalIgnoreCase)).Value)?.ToString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(clientUploaderName) && !HtmlSanitizer.MayContainXss(clientUploaderName))
+                        {
+                            uploadedBy = HtmlSanitizer.Sanitize(clientUploaderName);
+                        }
+                    }
 
                     var galleryOwner = await _database.GetUser(gallery.Owner);
                     var isFreeGallery = gallery.Owner > 0 && (galleryOwner?.Level ?? UserLevel.Basic) == UserLevel.Basic;

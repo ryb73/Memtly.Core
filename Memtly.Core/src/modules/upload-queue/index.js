@@ -78,7 +78,7 @@ export function onQueueChanged(callback) {
     }
 }
 
-export async function enqueueUpload({ galleryId, collectionId, secretKey, uploadUrl, fileName, fileType, fileBlob }) {
+export async function enqueueUpload({ galleryId, collectionId, secretKey, uploadUrl, fileName, fileType, fileBlob, uploaderName, uploaderEmail }) {
     const item = {
         id: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
         galleryId,
@@ -88,6 +88,8 @@ export async function enqueueUpload({ galleryId, collectionId, secretKey, upload
         fileName,
         fileType,
         fileBlob,
+        uploaderName,
+        uploaderEmail,
         queuedAt: Date.now(),
         status: 'queued',
         lastError: null,

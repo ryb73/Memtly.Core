@@ -1,6 +1,25 @@
 ﻿import { displayMessage } from '@modules/message-box';
 import { displayPopup } from '@modules/popups';
 
+const IDENTITY_STORAGE_KEY = 'memtly-identity';
+
+function writeCachedIdentity(name, email) {
+    try {
+        localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify({ name: name ?? '', email: email ?? '' }));
+    } catch {
+        // localStorage unavailable (private browsing, quota, etc.) - identity just won't persist locally
+    }
+}
+
+export function getCachedIdentity() {
+    try {
+        const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : { name: '', email: '' };
+    } catch {
+        return { name: '', email: '' };
+    }
+}
+
 function init() {
     bindEventHandlers();
 
@@ -30,8 +49,9 @@ function bindChangeIdentityButton() {
 export function displayIdentityCheck(required, callbackFn) {
     const elem = $('.change-identity');
     const emailRequired = elem.attr('data-identity-email') !== undefined;
+    const cached = getCachedIdentity();
 
-    displayIdentityCheckPopup('', '', required, emailRequired, callbackFn);
+    displayIdentityCheckPopup(cached.name, cached.email, required, emailRequired, callbackFn);
 }
 
 export function displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn) {
@@ -43,25 +63,32 @@ export function displayIdentityCheckPopup(name, email, nameRequired, emailRequir
             if (name !== undefined && name.length > 0) {
                 email = emailRequired ? $('#popup-modal-field-identity-email').val().trim() : '';
 
+                const proceed = () => {
+                    writeCachedIdentity(name, email);
+                    $('.file-uploader-form').attr('data-identity-required', 'false');
+
+                    if (callbackFn !== undefined && callbackFn !== null) {
+                        callbackFn();
+                    } else {
+                        $('.change-identity').attr('data-identity-name', name ?? '');
+                        $('.change-identity').attr('data-identity-email', email ?? '');
+                    }
+                };
+
+                if (!navigator.onLine) {
+                    // Offline - the name still travels with each upload request, so syncing to the server session isn't required to proceed.
+                    proceed();
+                    return;
+                }
+
                 $.ajax({
                     url: '/Home/SetIdentity',
                     method: 'POST',
                     data: { name, email }
                 })
                     .done(data => {
-                        if (data == undefined || data.success == undefined) {
-                            displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
-                            });
-                        } else if (data.success) {
-                            $('.file-uploader-form').attr('data-identity-required', 'false');
-
-                            if (callbackFn !== undefined && callbackFn !== null) {
-                                callbackFn();
-                            } else {
-                                $('.change-identity').attr('data-identity-name', name ?? '');
-                                $('.change-identity').attr('data-identity-email', email ?? '');
-                            }
+                        if (data == undefined || data.success == undefined || data.success) {
+                            proceed();
                         } else if (data.reason == 1) {
                             displayMessage(localization.translate('Invalid_Name'), localization.translate('Invalid_Name_Msg'), null, () => {
                                 displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
@@ -71,16 +98,10 @@ export function displayIdentityCheckPopup(name, email, nameRequired, emailRequir
                                 displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
                             });
                         } else {
-                            displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
-                            });
+                            proceed();
                         }
                     })
-                    .fail((xhr, error) => {
-                        displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                            displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
-                        });
-                    });
+                    .fail(() => proceed());
             } else {
                 displayMessage(localization.translate('Invalid_Name'), localization.translate('Invalid_Name_Msg'), null, () => {
                     displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
@@ -93,19 +114,25 @@ export function displayIdentityCheckPopup(name, email, nameRequired, emailRequir
         buttons.push({
             Text: localization.translate('Identity_Check_Stay_Anonymous'),
             Callback: function () {
+                const proceed = () => {
+                    writeCachedIdentity('Anonymous', '');
+                    $('.change-identity').attr('data-identity-name', 'Anonymous');
+                    $('.change-identity').attr('data-identity-email', '');
+                };
+
+                if (!navigator.onLine) {
+                    proceed();
+                    return;
+                }
+
                 $.ajax({
                     url: '/Home/SetIdentity',
                     method: 'POST',
                     data: { name: 'Anonymous', email: '' }
                 })
                     .done(data => {
-                        if (data == undefined || data.success == undefined) {
-                            displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
-                            });
-                        } else if (data.success) {
-                            $('.change-identity').attr('data-identity-name', name ?? '');
-                            $('.change-identity').attr('data-identity-email', email ?? '');
+                        if (data == undefined || data.success == undefined || data.success) {
+                            proceed();
                         } else if (data.reason == 1) {
                             displayMessage(localization.translate('Invalid_Name'), localization.translate('Invalid_Name_Msg'), null, () => {
                                 displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
@@ -115,16 +142,10 @@ export function displayIdentityCheckPopup(name, email, nameRequired, emailRequir
                                 displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
                             });
                         } else {
-                            displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                displayIdentityCheckPopup(name, email, nameRequired, emailRequired, callbackFn);
-                            });
+                            proceed();
                         }
                     })
-                    .fail((xhr, error) => {
-                        displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                            displayIdentityCheckPopup(name, email, nameRequired, callbackFn);
-                        });
-                    });
+                    .fail(() => proceed());
             }
         });
     }
@@ -184,19 +205,25 @@ function displayIdentityCheckChangePopup(name, email, emailRequired) {
                 email = $('#popup-modal-field-identity-email').length > 0 ? $('#popup-modal-field-identity-email').val().trim() : '';
 
                 if (name !== undefined && name.length > 0) {
+                    const proceed = () => {
+                        writeCachedIdentity(name, email);
+                        $('.change-identity').attr('data-identity-name', name ?? '');
+                        $('.change-identity').attr('data-identity-email', email ?? '');
+                    };
+
+                    if (!navigator.onLine) {
+                        proceed();
+                        return;
+                    }
+
                     $.ajax({
                         url: '/Home/SetIdentity',
                         method: 'POST',
                         data: { name, email }
                     })
                         .done(data => {
-                            if (data == undefined || data.success == undefined) {
-                                displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                    displayIdentityCheckChangePopup(name, email, emailRequired);
-                                });
-                            } else if (data.success) {
-                                $('.change-identity').attr('data-identity-name', name ?? '');
-                                $('.change-identity').attr('data-identity-email', email ?? '');
+                            if (data == undefined || data.success == undefined || data.success) {
+                                proceed();
                             } else if (data.reason == 1) {
                                 displayMessage(localization.translate('Invalid_Name'), localization.translate('Invalid_Name_Msg'), null, () => {
                                     displayIdentityCheckChangePopup(name, email, emailRequired);
@@ -206,16 +233,10 @@ function displayIdentityCheckChangePopup(name, email, emailRequired) {
                                     displayIdentityCheckChangePopup(name, email, emailRequired);
                                 });
                             } else {
-                                displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                    displayIdentityCheckChangePopup(name, email, emailRequired);
-                                });
+                                proceed();
                             }
                         })
-                        .fail((xhr, error) => {
-                            displayMessage(localization.translate('Identity_Check'), localization.translate('Identity_Check_Set_Failed'), [error], () => {
-                                displayIdentityCheckChangePopup(name, email, emailRequired);
-                            });
-                        });
+                        .fail(() => proceed());
                 } else {
                     displayMessage(localization.translate('Invalid_Name'), localization.translate('Invalid_Name_Msg'), null, () => {
                         displayIdentityCheckChangePopup(name, email, emailRequired);

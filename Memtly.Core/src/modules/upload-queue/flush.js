@@ -21,6 +21,8 @@ async function uploadQueuedItem(item) {
     formData.append('CollectionId', item.collectionId ?? '');
     formData.append('GalleryId', item.galleryId ?? '');
     formData.append('SecretKey', item.secretKey ?? '');
+    formData.append('UploaderName', item.uploaderName ?? '');
+    formData.append('UploaderEmail', item.uploaderEmail ?? '');
     formData.append(item.fileName, item.fileBlob, item.fileName);
 
     const response = await fetch(item.uploadUrl, {
@@ -31,12 +33,13 @@ async function uploadQueuedItem(item) {
     return response.json();
 }
 
-async function notifyUploadCompleted({ galleryId, collectionId, secretKey }, count) {
+async function notifyUploadCompleted({ galleryId, collectionId, secretKey, uploaderName }, count) {
     const formData = new FormData();
     formData.append('CollectionId', collectionId ?? '');
     formData.append('GalleryId', galleryId ?? '');
     formData.append('SecretKey', secretKey ?? '');
     formData.append('Count', count);
+    formData.append('UploaderName', uploaderName ?? '');
 
     const response = await fetch('/Gallery/UploadCompleted', {
         method: 'POST',
@@ -48,7 +51,7 @@ async function notifyUploadCompleted({ galleryId, collectionId, secretKey }, cou
 
 async function flushGroup(items) {
     const summary = { flushed: 0, failed: 0 };
-    const { galleryId, collectionId, secretKey } = items[0];
+    const { galleryId, collectionId, secretKey, uploaderName } = items[0];
 
     for (const item of items) {
         try {
@@ -68,7 +71,7 @@ async function flushGroup(items) {
 
     if (summary.flushed > 0) {
         try {
-            await notifyUploadCompleted({ galleryId, collectionId, secretKey }, summary.flushed);
+            await notifyUploadCompleted({ galleryId, collectionId, secretKey, uploaderName }, summary.flushed);
         } catch (error) {
             console.warn('Failed to notify upload completion for queued uploads', error);
         }

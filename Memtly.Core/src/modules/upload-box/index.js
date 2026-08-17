@@ -1,7 +1,7 @@
 ﻿import { displayMessage } from "@modules/message-box";
 import { displayPopup, hidePopup } from "@modules/popups";
 import { displayLoader, hideLoader } from "@modules/loader";
-import { displayIdentityCheck } from "@modules/identity-check";
+import { displayIdentityCheck, getCachedIdentity } from "@modules/identity-check";
 import { refreshGalleryPage } from "@pages/gallery/gallery";
 import { enqueueUpload } from "@modules/upload-queue";
 
@@ -397,6 +397,8 @@ class UploadBox {
     let requiresReview = true;
     let errors = [];
 
+    const identity = getCachedIdentity();
+
     const processFileUpload = (i, retries = 0) => {
       if (i < dataRefs.files.length) {
         const formData = new FormData();
@@ -404,6 +406,8 @@ class UploadBox {
         formData.append("CollectionId", collectionId);
         formData.append("GalleryId", galleryId);
         formData.append("SecretKey", secretKey);
+        formData.append("UploaderName", identity.name);
+        formData.append("UploaderEmail", identity.email);
         formData.append(dataRefs.files[i].name, dataRefs.files[i]);
 
         displayLoader(
@@ -525,6 +529,8 @@ class UploadBox {
     const fileList = [...files];
     if (!fileList.length) return;
 
+    const identity = getCachedIdentity();
+
     for (const file of fileList) {
       await enqueueUpload({
         galleryId,
@@ -534,6 +540,8 @@ class UploadBox {
         fileName: file.name,
         fileType: file.type,
         fileBlob: file,
+        uploaderName: identity.name,
+        uploaderEmail: identity.email,
       });
     }
 
@@ -603,11 +611,14 @@ class UploadBox {
     uploadedCount,
     dataRefs,
   ) {
+    const identity = getCachedIdentity();
+
     const formData = new FormData();
     formData.append("CollectionId", collectionId);
     formData.append("GalleryId", galleryId);
     formData.append("SecretKey", secretKey);
     formData.append("Count", uploadedCount);
+    formData.append("UploaderName", identity.name);
 
     setTimeout(() => {
       $.ajax({
