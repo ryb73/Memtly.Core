@@ -45,6 +45,7 @@ namespace Memtly.Core.Helpers.Database
         Task<IEnumerable<GalleryItemLikeModel>> GetGalleryItemLikes(int galleryItemId);
         Task<IEnumerable<GalleryItemLikeModel>> GetUsersGalleryItemLikes(int userId);
         Task<IEnumerable<GalleryItemLikeModel>> GetUnassignedGalleryItemLikes();
+        Task<GalleryItemLikersModel> GetGalleryItemLikers(int galleryItemId);
         Task<bool> CheckUserHasLikedGalleryItem(int galleryItemId, int? userId, string? guestName = null);
         Task<long> LikeGalleryItem(GalleryItemLikeModel model);
         Task<long> UnLikeGalleryItem(GalleryItemLikeModel model);

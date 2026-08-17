@@ -345,6 +345,7 @@ class MediaViewer {
             success: function (response) {
                 if (response !== undefined && response.success) {
                     $('.media-viewer-like-button .lbl-like-count').text(response.value);
+                    $('.media-viewer-likers-summary').text(response.likers || '').toggle(!!response.likers);
                     if (action.toLowerCase() === 'like') {
                         $('.media-viewer-like-button button').addClass('like-button-active');
                         $('.media-viewer-like-button button').attr('data-action', 'unlike')

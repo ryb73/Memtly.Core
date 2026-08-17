@@ -70,5 +70,8 @@ namespace Memtly.Core.Models
 
         [JsonPropertyName("count")]
         public long Count { get; set; } = 0;
+
+        [JsonPropertyName("likers")]
+        public string? LikersSummary { get; set; }
     }
 }

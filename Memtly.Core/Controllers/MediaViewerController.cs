@@ -98,7 +98,8 @@ namespace Memtly.Core.Controllers
                                     Enabled = likesEnabled,
                                     CanUserLike = likesEnabled,
                                     HasUserLiked = await _database.CheckUserHasLikedGalleryItem(galleryItem.Id, user != null ? _identity.GetUserId(User) : null, user == null ? HttpContext.Session.GetString(SessionKey.Viewer.Identity) : null),
-                                    Count = await _database.GetGalleryItemLikesCount(id)
+                                    Count = await _database.GetGalleryItemLikesCount(id),
+                                    LikersSummary = likesEnabled ? BuildLikersSummary(await _database.GetGalleryItemLikers(id)) : null
                                 },
                                 DownloadEnabled = await _settings.GetOrDefault(MemtlyConfiguration.Gallery.Download, true, gallery.Id) || _identity.IsPrivilegedUser(User)
                             });
@@ -255,7 +256,7 @@ namespace Memtly.Core.Controllers
                                 break;
                         }
 
-                        return Json(new { success = true, value = likes });
+                        return Json(new { success = true, value = likes, likers = BuildLikersSummary(await _database.GetGalleryItemLikers(id)) });
                     }
                 }
                 catch (Exception ex)
@@ -265,6 +266,17 @@ namespace Memtly.Core.Controllers
             }
 
             return Json(new { success = false });
+        }
+
+        private static string? BuildLikersSummary(GalleryItemLikersModel likers)
+        {
+            var parts = new List<string>(likers.Names);
+            if (likers.AnonymousCount > 0)
+            {
+                parts.Add($"{likers.AnonymousCount} Anonymous");
+            }
+
+            return parts.Count > 0 ? $"{string.Join(", ", parts)} liked this" : null;
         }
     }
 }

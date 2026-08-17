@@ -652,6 +652,42 @@ namespace Memtly.Core.Helpers.Database
                 .ToListAsync();
         }
 
+        public async Task<GalleryItemLikersModel> GetGalleryItemLikers(int galleryItemId)
+        {
+            var likes = await _db.GalleryLikes
+                .Where(gl => gl.GalleryItemId == galleryItemId)
+                .Select(gl => new
+                {
+                    gl.UserId,
+                    gl.GuestName,
+                    Firstname = gl.User != null ? gl.User.Firstname : null,
+                    Lastname = gl.User != null ? gl.User.Lastname : null,
+                    Username = gl.User != null ? gl.User.Username : null
+                })
+                .ToListAsync();
+
+            var result = new GalleryItemLikersModel();
+
+            foreach (var like in likes)
+            {
+                if (like.UserId.HasValue)
+                {
+                    var name = $"{like.Firstname} {like.Lastname}".Trim();
+                    result.Names.Add(string.IsNullOrWhiteSpace(name) ? like.Username! : name);
+                }
+                else if (!string.IsNullOrWhiteSpace(like.GuestName) && !like.GuestName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Names.Add(like.GuestName);
+                }
+                else
+                {
+                    result.AnonymousCount++;
+                }
+            }
+
+            return result;
+        }
+
         public async Task<bool> CheckUserHasLikedGalleryItem(int galleryItemId, int? userId, string? guestName = null)
         {
             if (userId.HasValue && userId.Value > 0)

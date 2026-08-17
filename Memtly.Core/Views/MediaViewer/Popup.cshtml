@@ -31,6 +31,10 @@
                     }
                 </div>
             </div>
+            @if (Model.Likes != null)
+            {
+                <div class="media-viewer-likers-summary mx-1 d-block text-truncate" style="@(string.IsNullOrWhiteSpace(Model.Likes.LikersSummary) ? "display: none;" : string.Empty)">@Model.Likes.LikersSummary</div>
+            }
         </div>
         @if (!string.IsNullOrWhiteSpace(Model.Description))
         {
