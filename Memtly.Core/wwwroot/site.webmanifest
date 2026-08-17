@@ -1,0 +1,13 @@
+{
+    "name": "Memtly",
+    "short_name": "Memtly",
+    "start_url": "/",
+    "display": "standalone",
+    "icons": [
+        {
+            "src": "/images/logo.png",
+            "sizes": "any",
+            "type": "image/png"
+        }
+    ]
+}

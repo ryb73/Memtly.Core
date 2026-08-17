@@ -4,6 +4,8 @@ import { displayLoader, hideLoader } from '@modules/loader';
 import { getTimestamp } from '@utilities/datetime';
 import { downloadBlob } from '@utilities/blobs';
 import { default as galleryUpload } from '@modules/upload-box';
+import { initUploadQueueTriggers } from '@modules/upload-queue/triggers';
+import { initUploadQueueUi } from '@modules/upload-queue/ui';
 import MediaViewer from '@modules/media-viewer';
 import Slideshow from '@modules/slideshow';
 import { default as initSettings } from '@pages/account/partials/settings';
@@ -19,6 +21,8 @@ function init() {
     const slideshowFadeInterval = $('input#slideshowFadeInterval').val();
 
     galleryUpload.init();
+    initUploadQueueTriggers();
+    initUploadQueueUi();
 
     slideshow = new Slideshow('#gallery-slideshow', slideshowSlideInterval, slideshowFadeInterval);
     slideshow.init();

@@ -1,454 +1,649 @@
-﻿import { displayMessage } from '@modules/message-box';
-import { displayPopup, hidePopup } from '@modules/popups';
-import { displayLoader, hideLoader } from '@modules/loader';
-import { displayIdentityCheck } from '@modules/identity-check';
-import { refreshGalleryPage } from '@pages/gallery/gallery';
+﻿import { displayMessage } from "@modules/message-box";
+import { displayPopup, hidePopup } from "@modules/popups";
+import { displayLoader, hideLoader } from "@modules/loader";
+import { displayIdentityCheck } from "@modules/identity-check";
+import { refreshGalleryPage } from "@pages/gallery/gallery";
+import { enqueueUpload } from "@modules/upload-queue";
 
 class UploadBox {
-    constructor() {
-        this.maxRetries = 5;
-        this.retryDelay = 2000;
+  constructor() {
+    this.maxRetries = 5;
+    this.retryDelay = 2000;
+  }
+
+  init() {
+    this.initializeDropZones();
+  }
+
+  isIdentityRequired() {
+    return (
+      $("form.file-uploader-form").attr("data-identity-required") === "true"
+    );
+  }
+
+  isCollection() {
+    return (
+      $("form.file-uploader-form").attr("data-gallery-type") === "collection"
+    );
+  }
+
+  triggerSelector(event) {
+    console.log("[upload-debug2] triggerSelector fired", {
+      isTrusted: event.isTrusted,
+      type: event.type,
+      online: navigator.onLine,
+    });
+
+    if (this.isIdentityRequired()) {
+      console.log("[upload-debug2] identity required, showing identity popup");
+      displayIdentityCheck(true, () => {
+        this.triggerSelector(event);
+      });
+      return;
     }
 
-    init() {
-        this.initializeDropZones();
-    }
+    const zone = event.target.closest("fieldset.upload_drop");
+    const input = $(zone.querySelector("input.upload-input"));
 
-    isIdentityRequired() {
-        return $('form.file-uploader-form').attr('data-identity-required') === 'true';
-    }
-
-    isCollection() {
-        return $('form.file-uploader-form').attr('data-gallery-type') === 'collection';
-    }
-
-    triggerSelector(event) {
-        if (this.isIdentityRequired()) {
-            displayIdentityCheck(true, () => {
-                this.triggerSelector(event);
-            });
-            return;
+    const galleryId = input.attr("data-post-gallery-id");
+    if (this.isCollection() && (galleryId === undefined || galleryId === "0")) {
+      console.log("[upload-debug2] collection gallery selector path");
+      const collectionId = input.attr("data-post-collection-id");
+      this.showGallerySelectorPopup(collectionId, (id) => {
+        if (id !== undefined && id > 0) {
+          this.setGalleryId(input, id);
         }
 
-        const zone = event.target.closest('fieldset.upload_drop');
-        const input = $(zone.querySelector('input.upload-input'));
-
-        const galleryId = input.attr('data-post-gallery-id');
-        if (this.isCollection() && (galleryId === undefined || galleryId === '0')) {
-            const collectionId = input.attr('data-post-collection-id');
-            this.showGallerySelectorPopup(collectionId, (id) => {
-                if (id !== undefined && id > 0) {
-                    this.setGalleryId(input, id);
-                }
-
-                this.triggerSelector(event);
-            });
-        } else {
-            if (input.data('post-allow-camera') === true) {
-                this.showUploadMethodPopup(input);
-            } else {
-                this.setGalleryMode(input);
-                input[0].click();
-            }
-        }
+        this.triggerSelector(event);
+      });
+    } else {
+      if (input.data("post-allow-camera") === true) {
+        console.log("[upload-debug2] camera popup path");
+        this.showUploadMethodPopup(input);
+      } else {
+        console.log(
+          "[upload-debug2] direct click path, calling input[0].click()",
+          input[0],
+        );
+        this.setGalleryMode(input);
+        input[0].click();
+        console.log("[upload-debug2] input[0].click() returned");
+      }
     }
+  }
 
-    showUploadMethodPopup(input) {
-        displayPopup({
-            Title: localization.translate('Upload'),
-            Message: localization.translate('Upload_Method'),
-            Buttons: [
-                {
-                    Text: localization.translate('Gallery'),
-                    Class: "btn-primary-2",
-                    Callback: () => {
-                        this.setGalleryMode(input);
-                        input[0].click();
-                        hidePopup();
-                    }
-                },
-                {
-                    Text: localization.translate('Camera'),
-                    Class: "btn-primary-2",
-                    Callback: () => {
-                        this.setCameraMode(input);
-                        input[0].click();
-                        hidePopup();
-                    }
-                },
-                {
-                    Text: localization.translate('Close')
-                }
-            ]
-        });
-    }
+  showUploadMethodPopup(input) {
+    displayPopup({
+      Title: localization.translate("Upload"),
+      Message: localization.translate("Upload_Method"),
+      Buttons: [
+        {
+          Text: localization.translate("Gallery"),
+          Class: "btn-primary-2",
+          Callback: () => {
+            this.setGalleryMode(input);
+            input[0].click();
+            hidePopup();
+          },
+        },
+        {
+          Text: localization.translate("Camera"),
+          Class: "btn-primary-2",
+          Callback: () => {
+            this.setCameraMode(input);
+            input[0].click();
+            hidePopup();
+          },
+        },
+        {
+          Text: localization.translate("Close"),
+        },
+      ],
+    });
+  }
 
-    showGallerySelectorPopup(collectionId, callback) {
-        $.ajax({
-            url: '/Collection/Galleries',
-            method: 'POST',
-            data: {
-                collectionId: collectionId
-            }
-        })
-            .done(collection => {
-                if (collection.items) {
-                    displayPopup({
-                        Title: localization.translate('Gallery_Selection'),
-                        FooterHtml: `
+  showGallerySelectorPopup(collectionId, callback) {
+    $.ajax({
+      url: "/Collection/Galleries",
+      method: "POST",
+      data: {
+        collectionId: collectionId,
+      },
+    })
+      .done((collection) => {
+        if (collection.items) {
+          displayPopup({
+            Title: localization.translate("Gallery_Selection"),
+            FooterHtml: `
                             <div class="row pb-3">
                                 <div class="col-12">
                                     <div id="gallery-selection-checklist" class="checklist-container" data-selection-type="single">
-                                        ${collection.items.map(item => {
+                                        ${collection.items
+                                          .map((item) => {
                                             return `<div class="checklist-item" data-gallery-id="${item.id}">${item.name}</div>`;
-                                        }).join('\n')}
+                                          })
+                                          .join("\n")}
                                     </div>
                                 </div>
                             </div>`,
-                        Buttons: [{
-                            Text: localization.translate('Select'),
-                            Class: 'btn-primary-2',
-                            Callback: () => {
-                                const galleryId = $('#gallery-selection-checklist .checklist-item.selected').map((index, item) => { return $(item).data('gallery-id'); }).get()[0] ?? 0;
-                                if (galleryId !== undefined && !isNaN(galleryId) && parseInt(galleryId) > 0) {
-                                    callback(galleryId)
-                                } else {
-                                    displayMessage(localization.translate('Gallery_Selection'), localization.translate('Please_Select_Gallery'), null, () => {
-                                        this.showGallerySelectorPopup(collectionId, callback);
-                                    });
-                                }
-                            }
-                        }, {
-                            Text: localization.translate('Close')
-                        }]
-                    });
-                } else {
-                    displayMessage(localization.translate('Gallery_Selection'), localization.translate('Failed_Get_Gallery_List'));
-                }
-            })
-            .fail((xhr, error) => {
-                displayMessage(localization.translate('Gallery_Selection'), localization.translate('Failed_Get_Gallery_List'), [error]);
-            });
-    }
-
-    setGalleryId(input, galleryId) {
-        input.attr('data-post-gallery-id', galleryId);
-    }
-
-    setGalleryMode(input) {
-        input.attr('accept', 'image/*,video/*');
-        input.attr('multiple', '');
-        input.removeAttr('capture');
-    }
-
-    setCameraMode(input) {
-        input.attr('accept', 'image/*');
-        input.attr('capture', 'environment');
-        input.removeAttr('multiple');
-    }
-
-    highlight(e) {
-        $(e.target).closest('.upload_drop').addClass('highlight');
-    }
-
-    unhighlight(e) {
-        $(e.target).closest('.upload_drop').removeClass('highlight');
-    }
-
-    getInputAndGalleryRefs(element) {
-        const zone = element.closest('fieldset.upload_drop') || false;
-        const gallery = zone ? zone.querySelector('.upload_gallery') : false;
-        const input = zone ? zone.querySelector('input[type="file"]') : false;
-        return { input, gallery };
-    }
-
-    handleDrop(event) {
-        const dataRefs = this.getInputAndGalleryRefs(event.target);
-        dataRefs.files = event.dataTransfer.files;
-
-        if (this.isIdentityRequired()) {
-            displayIdentityCheck(true, () => {
-                this.handleFiles(dataRefs);
-            });
+            Buttons: [
+              {
+                Text: localization.translate("Select"),
+                Class: "btn-primary-2",
+                Callback: () => {
+                  const galleryId =
+                    $("#gallery-selection-checklist .checklist-item.selected")
+                      .map((index, item) => {
+                        return $(item).data("gallery-id");
+                      })
+                      .get()[0] ?? 0;
+                  if (
+                    galleryId !== undefined &&
+                    !isNaN(galleryId) &&
+                    parseInt(galleryId) > 0
+                  ) {
+                    callback(galleryId);
+                  } else {
+                    displayMessage(
+                      localization.translate("Gallery_Selection"),
+                      localization.translate("Please_Select_Gallery"),
+                      null,
+                      () => {
+                        this.showGallerySelectorPopup(collectionId, callback);
+                      },
+                    );
+                  }
+                },
+              },
+              {
+                Text: localization.translate("Close"),
+              },
+            ],
+          });
         } else {
-            const galleryId = dataRefs.input.getAttribute('data-post-gallery-id');
-            if (this.isCollection() && (galleryId === undefined || galleryId === '0')) {
-                const collectionId = dataRefs.input.getAttribute('data-post-collection-id');
-                this.showGallerySelectorPopup(collectionId, (id) => {
-                    if (id !== undefined && id > 0) {
-                        this.setGalleryId($(dataRefs.input), id);
-                    }
-
-                    this.handleFiles(dataRefs);
-                });
-            } else {
-                this.handleFiles(dataRefs);
-            }
+          displayMessage(
+            localization.translate("Gallery_Selection"),
+            localization.translate("Failed_Get_Gallery_List"),
+          );
         }
+      })
+      .fail((xhr, error) => {
+        displayMessage(
+          localization.translate("Gallery_Selection"),
+          localization.translate("Failed_Get_Gallery_List"),
+          [error],
+        );
+      });
+  }
+
+  setGalleryId(input, galleryId) {
+    input.attr("data-post-gallery-id", galleryId);
+  }
+
+  setGalleryMode(input) {
+    input.attr("accept", "image/*,video/*");
+    input.attr("multiple", "");
+    input.removeAttr("capture");
+  }
+
+  setCameraMode(input) {
+    input.attr("accept", "image/*");
+    input.attr("capture", "environment");
+    input.removeAttr("multiple");
+  }
+
+  highlight(e) {
+    $(e.target).closest(".upload_drop").addClass("highlight");
+  }
+
+  unhighlight(e) {
+    $(e.target).closest(".upload_drop").removeClass("highlight");
+  }
+
+  getInputAndGalleryRefs(element) {
+    const zone = element.closest("fieldset.upload_drop") || false;
+    const gallery = zone ? zone.querySelector(".upload_gallery") : false;
+    const input = zone ? zone.querySelector('input[type="file"]') : false;
+    return { input, gallery };
+  }
+
+  handleDrop(event) {
+    const dataRefs = this.getInputAndGalleryRefs(event.target);
+    dataRefs.files = event.dataTransfer.files;
+
+    if (this.isIdentityRequired()) {
+      displayIdentityCheck(true, () => {
+        this.handleFiles(dataRefs);
+      });
+    } else {
+      const galleryId = dataRefs.input.getAttribute("data-post-gallery-id");
+      if (
+        this.isCollection() &&
+        (galleryId === undefined || galleryId === "0")
+      ) {
+        const collectionId = dataRefs.input.getAttribute(
+          "data-post-collection-id",
+        );
+        this.showGallerySelectorPopup(collectionId, (id) => {
+          if (id !== undefined && id > 0) {
+            this.setGalleryId($(dataRefs.input), id);
+          }
+
+          this.handleFiles(dataRefs);
+        });
+      } else {
+        this.handleFiles(dataRefs);
+      }
+    }
+  }
+
+  initializeDropZones() {
+    const dropZones = document.querySelectorAll("fieldset.upload_drop");
+    console.log(
+      "[upload-debug2] initializeDropZones found",
+      dropZones.length,
+      "zone(s)",
+    );
+
+    dropZones.forEach((zone) => {
+      this.setupEventHandlers(zone);
+    });
+  }
+
+  setupEventHandlers(zone) {
+    const dataRefs = this.getInputAndGalleryRefs(zone);
+
+    if (!dataRefs.input) {
+      console.log(
+        "[upload-debug2] setupEventHandlers bailed, no input found for zone",
+        zone,
+      );
+      return;
     }
 
-    initializeDropZones() {
-        const dropZones = document.querySelectorAll('fieldset.upload_drop');
+    console.log(
+      "[upload-debug2] binding click/change listeners for zone",
+      zone,
+      dataRefs.input,
+    );
 
-        dropZones.forEach(zone => {
-            this.setupEventHandlers(zone);
-        });
+    // Prevent default drag behaviors
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+      zone.addEventListener(eventName, preventDefaults, false);
+      document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Open file browser on drop area click
+    ["click", "touch"].forEach((eventName) => {
+      zone.addEventListener(eventName, (e) => this.triggerSelector(e), false);
+    });
+
+    // Highlighting drop area when item is dragged over it
+    ["dragenter", "dragover"].forEach((eventName) => {
+      zone.addEventListener(eventName, (e) => this.highlight(e), false);
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      zone.addEventListener(eventName, (e) => this.unhighlight(e), false);
+    });
+
+    // Handle dropped files
+    zone.addEventListener("drop", (e) => this.handleDrop(e), false);
+
+    // Handle browse selected files
+    dataRefs.input.addEventListener(
+      "change",
+      (event) => {
+        dataRefs.files = event.target.files;
+        this.handleFiles(dataRefs);
+      },
+      false,
+    );
+  }
+
+  isImageFile(file) {
+    return file.type.toLowerCase().startsWith("image/");
+  }
+
+  isVideoFile(file) {
+    return file.type.toLowerCase().startsWith("video/");
+  }
+
+  async handleFiles(dataRefs) {
+    let files = [...dataRefs.files];
+
+    // Remove unaccepted file types
+    files = files.filter((item) => {
+      const isAllowed = this.isImageFile(item) || this.isVideoFile(item);
+      if (!isAllowed) {
+        console.log(
+          `File type '${item.type}' is not allowed. Filename: '${item.name}'`,
+        );
+      }
+      return isAllowed;
+    });
+
+    if (!files.length) return;
+
+    dataRefs.files = files;
+    await this.imageUpload(dataRefs);
+  }
+
+  async imageUpload(dataRefs) {
+    if (this.isIdentityRequired()) {
+      displayIdentityCheck(true, () => {
+        dataRefs.input.click();
+      });
+      return;
     }
 
-    setupEventHandlers(zone) {
-        const dataRefs = this.getInputAndGalleryRefs(zone);
-
-        if (!dataRefs.input) return;
-
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            zone.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
-        });
-
-        // Open file browser on drop area click
-        ['click', 'touch'].forEach(eventName => {
-            zone.addEventListener(eventName, (e) => this.triggerSelector(e), false);
-        });
-
-        // Highlighting drop area when item is dragged over it
-        ['dragenter', 'dragover'].forEach(eventName => {
-            zone.addEventListener(eventName, (e) => this.highlight(e), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            zone.addEventListener(eventName, (e) => this.unhighlight(e), false);
-        });
-
-        // Handle dropped files
-        zone.addEventListener('drop', (e) => this.handleDrop(e), false);
-
-        // Handle browse selected files
-        dataRefs.input.addEventListener('change', (event) => {
-            dataRefs.files = event.target.files;
-            this.handleFiles(dataRefs);
-        }, false);
+    // Multiple source routes, so double check validity
+    if (!dataRefs.files || !dataRefs.input) {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_No_Files_Detected"),
+      );
+      return;
     }
 
-    isImageFile(file) {
-        return file.type.toLowerCase().startsWith('image/');
+    const token = $(
+      "form.file-uploader-form input[name='__RequestVerificationToken']",
+    ).val();
+    const collectionId = dataRefs.input.getAttribute("data-post-collection-id");
+    const galleryId = dataRefs.input.getAttribute("data-post-gallery-id");
+    const url = dataRefs.input.getAttribute("data-post-url");
+    const secretKey = dataRefs.input.getAttribute("data-post-key");
+
+    if (!galleryId) {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_Invalid_Gallery_Detected"),
+      );
+      return;
     }
 
-    isVideoFile(file) {
-        return file.type.toLowerCase().startsWith('video/');
+    if (!url) {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_Invalid_Upload_Url"),
+      );
+      return;
     }
 
-    async handleFiles(dataRefs) {
-        let files = [...dataRefs.files];
-
-        // Remove unaccepted file types
-        files = files.filter(item => {
-            const isAllowed = this.isImageFile(item) || this.isVideoFile(item);
-            if (!isAllowed) {
-                console.log(`File type '${item.type}' is not allowed. Filename: '${item.name}'`);
-            }
-            return isAllowed;
-        });
-
-        if (!files.length) return;
-
-        dataRefs.files = files;
-        await this.imageUpload(dataRefs);
-    }
-
-    async imageUpload(dataRefs) {
-        if (this.isIdentityRequired()) {
-            displayIdentityCheck(true, () => {
-                dataRefs.input.click();
-            });
-            return;
+    if (this.isCollection() && (galleryId === undefined || galleryId === "0")) {
+      this.showGallerySelectorPopup(collectionId, (id) => {
+        if (id !== undefined && id > 0) {
+          this.setGalleryId($(dataRefs.input), id);
         }
 
-        // Multiple source routes, so double check validity
-        if (!dataRefs.files || !dataRefs.input) {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_No_Files_Detected')
+        dataRefs.input.click();
+      });
+      return;
+    }
+
+    if (!navigator.onLine) {
+      await this.queueFilesForLater(
+        dataRefs.files,
+        collectionId,
+        galleryId,
+        url,
+        secretKey,
+        dataRefs,
+      );
+      return;
+    }
+
+    let uploadedCount = 0;
+    let requiresReview = true;
+    let errors = [];
+
+    const processFileUpload = (i, retries = 0) => {
+      if (i < dataRefs.files.length) {
+        const formData = new FormData();
+        formData.append("__RequestVerificationToken", token);
+        formData.append("CollectionId", collectionId);
+        formData.append("GalleryId", galleryId);
+        formData.append("SecretKey", secretKey);
+        formData.append(dataRefs.files[i].name, dataRefs.files[i]);
+
+        displayLoader(
+          `${localization.translate("Upload_Progress")} ${i + 1}/${dataRefs.files.length}...<br/><br/><span id="file-upload-progress">0%</span>`,
+        );
+
+        let failureHandled = false;
+        const handleFailure = () => {
+          if (failureHandled) return;
+          failureHandled = true;
+
+          if (!navigator.onLine || retries >= this.maxRetries) {
+            const remaining = dataRefs.files.slice(i);
+            errors.push(
+              `${remaining.length} file(s) could not be uploaded and have been queued to retry automatically once you're back online.`,
             );
-            return;
-        }
-
-        const token = $('form.file-uploader-form input[name=\'__RequestVerificationToken\']').val();
-        const collectionId = dataRefs.input.getAttribute('data-post-collection-id');
-        const galleryId = dataRefs.input.getAttribute('data-post-gallery-id');
-        const url = dataRefs.input.getAttribute('data-post-url');
-        const secretKey = dataRefs.input.getAttribute('data-post-key');
-
-        if (!galleryId) {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_Invalid_Gallery_Detected')
+            this.queueFilesForLater(
+              remaining,
+              collectionId,
+              galleryId,
+              url,
+              secretKey,
+              dataRefs,
+              false,
+            ).then(() =>
+              this.handleUploadComplete(
+                uploadedCount,
+                requiresReview,
+                errors,
+                collectionId,
+                galleryId,
+                secretKey,
+                dataRefs,
+              ),
             );
-            return;
-        }
-
-        if (!url) {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_Invalid_Upload_Url')
-            );
-            return;
-        }
-
-        if (this.isCollection() && (galleryId === undefined || galleryId === '0')) {
-            this.showGallerySelectorPopup(collectionId, (id) => {
-                if (id !== undefined && id > 0) {
-                    this.setGalleryId($(dataRefs.input), id);
-                }
-
-                dataRefs.input.click();
-            });
-            return;
-        }
-
-        let uploadedCount = 0;
-        let requiresReview = true;
-        let errors = [];
-
-        const processFileUpload = (i, retries = 0) => {
-            if (i < dataRefs.files.length) {
-                const formData = new FormData();
-                formData.append('__RequestVerificationToken', token);
-                formData.append('CollectionId', collectionId);
-                formData.append('GalleryId', galleryId);
-                formData.append('SecretKey', secretKey);
-                formData.append(dataRefs.files[i].name, dataRefs.files[i]);
-
-                displayLoader(
-                    `${localization.translate('Upload_Progress')} ${i + 1}/${dataRefs.files.length}...<br/><br/><span id="file-upload-progress">0%</span>`
-                );
-
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    data: formData,
-                    async: true,
-                    cache: false,
-                    contentType: false,
-                    dataType: 'json',
-                    processData: false,
-                    success: (response) => {
-                        if (response?.success === true) {
-                            requiresReview = response.requiresReview;
-                            uploadedCount++;
-                        } else if (response?.errors?.length > 0) {
-                            errors.push(response.errors);
-                        }
-                        processFileUpload(i + 1);
-                    },
-                    xhr: () => {
-                        const xhr = new window.XMLHttpRequest();
-
-                        xhr.upload.addEventListener("progress", (evt) => {
-                            if (evt.lengthComputable) {
-                                const percentComplete = Math.floor((evt.loaded / evt.total) * 100);
-                                const progressElement = $('span#file-upload-progress');
-                                if (progressElement.length > 0) {
-                                    progressElement.text(`(${percentComplete}%)`);
-                                }
-                            }
-                        }, false);
-
-                        xhr.upload.addEventListener("error", (evt) => {
-                            console.error(evt);
-                            if (retries < this.maxRetries) {
-                                setTimeout(() => {
-                                    processFileUpload(i, retries + 1);
-                                }, this.retryDelay);
-                            } else {
-                                displayMessage(
-                                    localization.translate('Upload'),
-                                    localization.translate('Upload_Failed'),
-                                    errors
-                                );
-                            }
-                        }, false);
-
-                        return xhr;
-                    },
-                });
-            } else {
-                this.handleUploadComplete(uploadedCount, requiresReview, errors, collectionId, galleryId, secretKey, dataRefs);
-            }
+          } else {
+            setTimeout(() => {
+              processFileUpload(i, retries + 1);
+            }, this.retryDelay);
+          }
         };
 
-        processFileUpload(0);
-    }
+        $.ajax({
+          url: url,
+          type: "POST",
+          data: formData,
+          async: true,
+          cache: false,
+          contentType: false,
+          dataType: "json",
+          processData: false,
+          success: (response) => {
+            failureHandled = true;
+            if (response?.success === true) {
+              requiresReview = response.requiresReview;
+              uploadedCount++;
+            } else if (response?.errors?.length > 0) {
+              errors.push(response.errors);
+            }
+            processFileUpload(i + 1);
+          },
+          error: () => handleFailure(),
+          xhr: () => {
+            const xhr = new window.XMLHttpRequest();
 
-    handleUploadComplete(uploadedCount, requiresReview, errors, collectionId, galleryId, secretKey, dataRefs) {
-        hideLoader();
-
-        if (this.isCollection()) {
-            this.setGalleryId($(dataRefs.input), '0');
-        }
-
-        if (uploadedCount <= 0) {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_Failed'),
-                errors
-            );
-        } else if (requiresReview) {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_Success_Pending_Review'),
-                errors
-            );
-
-            this.notifyUploadCompleted(collectionId, galleryId, secretKey, uploadedCount, dataRefs);
-        } else {
-            displayMessage(
-                localization.translate('Upload'),
-                localization.translate('Upload_Success'),
-                errors,
-                () => refreshGalleryPage()
-            );
-        }
-    }
-
-    notifyUploadCompleted(collectionId, galleryId, secretKey, uploadedCount, dataRefs) {
-        const formData = new FormData();
-        formData.append('CollectionId', collectionId);
-        formData.append('GalleryId', galleryId);
-        formData.append('SecretKey', secretKey);
-        formData.append('Count', uploadedCount);
-
-        setTimeout(() => {
-            $.ajax({
-                url: '/Gallery/UploadCompleted',
-                type: 'POST',
-                data: formData,
-                async: true,
-                cache: false,
-                contentType: false,
-                dataType: 'json',
-                processData: false,
-                success: (response) => {
-                    dataRefs.input.value = '';
-
-                    const counter = $('.review-counter');
-                    if (counter.length > 0) {
-                        counter.find('.review-counter-total').text(response.counters.total);
-                        counter.find('.review-counter-approved').text(response.counters.approved);
-                        counter.find('.review-counter-pending').text(response.counters.pending);
-                    }
-                },
-                error: (response) => {
-                    console.error(response);
-                    displayMessage(
-                        localization.translate('Upload'),
-                        localization.translate('Upload_Failed'),
-                        [response]
-                    );
+            xhr.upload.addEventListener(
+              "progress",
+              (evt) => {
+                if (evt.lengthComputable) {
+                  const percentComplete = Math.floor(
+                    (evt.loaded / evt.total) * 100,
+                  );
+                  const progressElement = $("span#file-upload-progress");
+                  if (progressElement.length > 0) {
+                    progressElement.text(`(${percentComplete}%)`);
+                  }
                 }
-            });
-        }, 500);
+              },
+              false,
+            );
+
+            xhr.upload.addEventListener(
+              "error",
+              (evt) => {
+                console.error(evt);
+                handleFailure();
+              },
+              false,
+            );
+
+            return xhr;
+          },
+        });
+      } else {
+        this.handleUploadComplete(
+          uploadedCount,
+          requiresReview,
+          errors,
+          collectionId,
+          galleryId,
+          secretKey,
+          dataRefs,
+        );
+      }
+    };
+
+    processFileUpload(0);
+  }
+
+  async queueFilesForLater(
+    files,
+    collectionId,
+    galleryId,
+    url,
+    secretKey,
+    dataRefs,
+    notify = true,
+  ) {
+    const fileList = [...files];
+    if (!fileList.length) return;
+
+    for (const file of fileList) {
+      await enqueueUpload({
+        galleryId,
+        collectionId,
+        secretKey,
+        uploadUrl: url,
+        fileName: file.name,
+        fileType: file.type,
+        fileBlob: file,
+      });
     }
+
+    if (this.isCollection()) {
+      this.setGalleryId($(dataRefs.input), "0");
+    }
+    dataRefs.input.value = "";
+
+    if (notify) {
+      hideLoader();
+      displayMessage(
+        localization.translate("Upload"),
+        `You're offline — ${fileList.length} file(s) have been queued and will upload automatically once you're back online.`,
+      );
+    }
+  }
+
+  handleUploadComplete(
+    uploadedCount,
+    requiresReview,
+    errors,
+    collectionId,
+    galleryId,
+    secretKey,
+    dataRefs,
+  ) {
+    hideLoader();
+
+    if (this.isCollection()) {
+      this.setGalleryId($(dataRefs.input), "0");
+    }
+
+    if (uploadedCount <= 0) {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_Failed"),
+        errors,
+      );
+    } else if (requiresReview) {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_Success_Pending_Review"),
+        errors,
+      );
+
+      this.notifyUploadCompleted(
+        collectionId,
+        galleryId,
+        secretKey,
+        uploadedCount,
+        dataRefs,
+      );
+    } else {
+      displayMessage(
+        localization.translate("Upload"),
+        localization.translate("Upload_Success"),
+        errors,
+        () => refreshGalleryPage(),
+      );
+    }
+  }
+
+  notifyUploadCompleted(
+    collectionId,
+    galleryId,
+    secretKey,
+    uploadedCount,
+    dataRefs,
+  ) {
+    const formData = new FormData();
+    formData.append("CollectionId", collectionId);
+    formData.append("GalleryId", galleryId);
+    formData.append("SecretKey", secretKey);
+    formData.append("Count", uploadedCount);
+
+    setTimeout(() => {
+      $.ajax({
+        url: "/Gallery/UploadCompleted",
+        type: "POST",
+        data: formData,
+        async: true,
+        cache: false,
+        contentType: false,
+        dataType: "json",
+        processData: false,
+        success: (response) => {
+          dataRefs.input.value = "";
+
+          const counter = $(".review-counter");
+          if (counter.length > 0) {
+            counter.find(".review-counter-total").text(response.counters.total);
+            counter
+              .find(".review-counter-approved")
+              .text(response.counters.approved);
+            counter
+              .find(".review-counter-pending")
+              .text(response.counters.pending);
+          }
+        },
+        error: (response) => {
+          console.error(response);
+          displayMessage(
+            localization.translate("Upload"),
+            localization.translate("Upload_Failed"),
+            [response],
+          );
+        },
+      });
+    }, 500);
+  }
 }
 
 const galleryUpload = new UploadBox();

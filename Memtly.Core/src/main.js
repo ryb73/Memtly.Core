@@ -9,6 +9,8 @@ import 'jquery-validation';
 import 'jquery-validation-unobtrusive';
 
 import { Localization } from '@modules/localization';
+import { onQueueChanged } from '@modules/upload-queue';
+import { primeShellCache } from '@modules/offline-shell';
 import initGdpr from '@modules/gdpr';
 import { default as initThemes, getSelectedTheme } from '@themes';
 import initIdentityCheck from '@modules/identity-check';
@@ -36,7 +38,7 @@ async function init() {
 
     window.localization = localization;
 
-    initPage();
+    initPage().then(() => primeShellCache());
     initGdpr();
     initThemes();
     initSponsors();
@@ -50,17 +52,34 @@ async function init() {
 
     app.config.theme = getSelectedTheme();
     app.initialized = true;
+
+    registerServiceWorker();
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+        .then((registration) => {
+            if (!('sync' in registration)) return;
+
+            onQueueChanged(() => {
+                registration.sync.register('memtly-upload-queue-flush').catch(() => {});
+            });
+        })
+        .catch((err) => console.warn('Service worker registration failed', err));
 }
 
 function initPage() {
     const path = window.location.pathname.toLowerCase();
     if (path === '/') {
-        import('@pages/homepage').then(({ default: init }) => { init(); });
+        return import('@pages/homepage').then(({ default: init }) => { init(); });
     } else if (path.startsWith('/gallery')) {
-        import('@pages/gallery').then(({ default: init }) => { init(); });
+        return import('@pages/gallery').then(({ default: init }) => { init(); });
     } else if (path.startsWith('/account')) {
-        import('@pages/account').then(({ default: init }) => { init(); });
+        return import('@pages/account').then(({ default: init }) => { init(); });
     }
+    return Promise.resolve();
 }
 
 function bindEventHandlers() {

@@ -26,8 +26,16 @@ export class Localization {
     }
 
     async getTranslations() {
-        const response = await fetch(`/Language/GetTranslations`);
-        this.data = await response.json();
+        try {
+            const response = await fetch(`/Language/GetTranslations`);
+            this.data = await response.json();
+        } catch (error) {
+            // Offline with nothing cached yet, or some other network failure -
+            // keep whatever this.data already holds (constructor default, or a
+            // prior successful fetch) rather than letting this reject and
+            // block the rest of main.js's init() chain from ever running.
+            console.warn('Failed to fetch translations, falling back to existing/default translations', error);
+        }
     }
 
     translate(key) {
