@@ -1,13 +1,16 @@
 ﻿import { displayMessage } from "@modules/message-box";
 import { displayPopup, hidePopup } from "@modules/popups";
 import { displayLoader, hideLoader } from "@modules/loader";
-import { displayIdentityCheck, getCachedIdentity } from "@modules/identity-check";
+import {
+  displayIdentityCheck,
+  getCachedIdentity,
+} from "@modules/identity-check";
 import { refreshGalleryPage } from "@pages/gallery/gallery";
 import { enqueueUpload } from "@modules/upload-queue";
 
 class UploadBox {
   constructor() {
-    this.maxRetries = 5;
+    this.maxRetries = 3;
     this.retryDelay = 2000;
   }
 
