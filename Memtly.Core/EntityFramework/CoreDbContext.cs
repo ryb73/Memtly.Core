@@ -177,6 +177,8 @@ namespace Memtly.Core.EntityFramework
                     v => new DateTimeOffset(v, TimeSpan.Zero)
                 );
 
+                e.Property(x => x.GuestName).HasMaxLength(100);
+
                 e.HasOne(x => x.GalleryItem)
                  .WithMany(gi => gi.Likes)
                  .HasForeignKey(x => x.GalleryItemId)

@@ -17,7 +17,7 @@ namespace Memtly.Core.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.18")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -273,6 +273,10 @@ namespace Memtly.Core.Migrations.Postgres.Migrations
 
                     b.Property<int?>("GalleryItemId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("GuestName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("integer");

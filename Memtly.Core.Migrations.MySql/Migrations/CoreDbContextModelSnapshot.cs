@@ -17,7 +17,7 @@ namespace Memtly.Core.Migrations.MySql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.18")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -273,6 +273,10 @@ namespace Memtly.Core.Migrations.MySql.Migrations
 
                     b.Property<int?>("GalleryItemId")
                         .HasColumnType("int");
+
+                    b.Property<string>("GuestName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");

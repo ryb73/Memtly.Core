@@ -613,7 +613,8 @@ namespace Memtly.Core.Helpers.Database
                     Id = gl.Id,
                     GalleryId = gl!.GalleryItem!.GalleryId ?? 0,
                     GalleryItemId = gl!.GalleryItemId ?? 0,
-                    UserId = gl!.UserId ?? 0,
+                    UserId = gl!.UserId,
+                    GuestName = gl!.GuestName,
                     Timestamp = gl.CreatedAt
                 })
                 .ToListAsync();
@@ -628,7 +629,8 @@ namespace Memtly.Core.Helpers.Database
                     Id = gl.Id,
                     GalleryId = gl!.GalleryItem!.GalleryId ?? 0,
                     GalleryItemId = gl!.GalleryItemId ?? 0,
-                    UserId = gl!.UserId ?? 0,
+                    UserId = gl!.UserId,
+                    GuestName = gl!.GuestName,
                     Timestamp = gl.CreatedAt
                 })
                 .ToListAsync();
@@ -643,27 +645,44 @@ namespace Memtly.Core.Helpers.Database
                     Id = gl.Id,
                     GalleryId = gl!.GalleryItem!.GalleryId ?? 0,
                     GalleryItemId = gl!.GalleryItemId ?? 0,
-                    UserId = gl!.UserId ?? 0,
+                    UserId = gl!.UserId,
+                    GuestName = gl!.GuestName,
                     Timestamp = gl.CreatedAt
                 })
                 .ToListAsync();
         }
 
-        public async Task<bool> CheckUserHasLikedGalleryItem(int galleryItemId, int userId)
+        public async Task<bool> CheckUserHasLikedGalleryItem(int galleryItemId, int? userId, string? guestName = null)
         {
+            if (userId.HasValue && userId.Value > 0)
+            {
+                return (await _db.GalleryLikes
+                    .CountAsync(gl => gl.GalleryItemId == galleryItemId && gl.UserId == userId.Value)) > 0;
+            }
+
+            // Anonymous guests without a real name are never treated as "already liked" -
+            // every visitor still calling themselves "Anonymous" is free to add another like.
+            if (string.IsNullOrWhiteSpace(guestName) || guestName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             return (await _db.GalleryLikes
-                .CountAsync(gl => gl.GalleryItemId == galleryItemId && gl.UserId == userId)) > 0;
+                .CountAsync(gl => gl.GalleryItemId == galleryItemId && gl.UserId == null && gl.GuestName == guestName)) > 0;
         }
 
         public async Task<long> LikeGalleryItem(GalleryItemLikeModel model)
         {
-            var liked = await CheckUserHasLikedGalleryItem(model.GalleryItemId, model.UserId);
+            var liked = await CheckUserHasLikedGalleryItem(model.GalleryItemId, model.UserId, model.GuestName);
             if (!liked)
             {
+                var isRegisteredUser = model.UserId.HasValue && model.UserId.Value > 0;
+
                 await _db.GalleryLikes.AddAsync(new GalleryLike()
                 {
                     GalleryItemId = model.GalleryItemId,
-                    UserId = model.UserId,
+                    UserId = isRegisteredUser ? model.UserId : null,
+                    GuestName = isRegisteredUser ? null : model.GuestName,
                     CreatedAt = DateTimeOffset.UtcNow
                 });
                 await _db.SaveChangesAsync();
@@ -674,9 +693,22 @@ namespace Memtly.Core.Helpers.Database
 
         public async Task<long> UnLikeGalleryItem(GalleryItemLikeModel model)
         {
-            await _db.GalleryLikes
-                .Where(gl => gl.GalleryItemId == model.GalleryItemId && gl.UserId == model.UserId)
-                .ExecuteDeleteAsync();
+            var isRegisteredUser = model.UserId.HasValue && model.UserId.Value > 0;
+
+            if (isRegisteredUser)
+            {
+                await _db.GalleryLikes
+                    .Where(gl => gl.GalleryItemId == model.GalleryItemId && gl.UserId == model.UserId.Value)
+                    .ExecuteDeleteAsync();
+            }
+            else if (!string.IsNullOrWhiteSpace(model.GuestName) && !model.GuestName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+            {
+                // Unnamed "Anonymous" likes are never deduplicated, so there's no single record to
+                // attribute an unlike to - only named guests can remove their own like.
+                await _db.GalleryLikes
+                    .Where(gl => gl.GalleryItemId == model.GalleryItemId && gl.UserId == null && gl.GuestName == model.GuestName)
+                    .ExecuteDeleteAsync();
+            }
 
             return await GetGalleryItemLikesCount(model.GalleryItemId);
         }

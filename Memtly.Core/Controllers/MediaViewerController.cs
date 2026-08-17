@@ -57,7 +57,7 @@ namespace Memtly.Core.Controllers
                     {
                         var gallery = await _database.GetGallery(galleryItem.GalleryId);
                         if (gallery != null)
-                        { 
+                        {
                             var user = _identity.IsValid(User) ? User.Identity : null;
                             var identityEnabled = await _settings.GetOrDefault(MemtlyConfiguration.IdentityCheck.Enabled, true);
                             var likesEnabled = await _settings.GetOrDefault(MemtlyConfiguration.Gallery.Likes, true, galleryItem.GalleryId);
@@ -84,7 +84,7 @@ namespace Memtly.Core.Controllers
                                 author = builder.ToString();
                             }
 
-                            return PartialView("~/Views/MediaViewer/Popup.cshtml", new Popup() 
+                            return PartialView("~/Views/MediaViewer/Popup.cshtml", new Popup()
                             {
                                 Id = id,
                                 Collection = gallery.Name,
@@ -96,8 +96,8 @@ namespace Memtly.Core.Controllers
                                 Likes = new PhotoGalleryImageLikes()
                                 {
                                     Enabled = likesEnabled,
-                                    CanUserLike = likesEnabled && user != null,
-                                    HasUserLiked = user != null ? await _database.CheckUserHasLikedGalleryItem(galleryItem.Id, _identity.GetUserId(User)) : false,
+                                    CanUserLike = likesEnabled,
+                                    HasUserLiked = await _database.CheckUserHasLikedGalleryItem(galleryItem.Id, user != null ? _identity.GetUserId(User) : null, user == null ? HttpContext.Session.GetString(SessionKey.Viewer.Identity) : null),
                                     Count = await _database.GetGalleryItemLikesCount(id)
                                 },
                                 DownloadEnabled = await _settings.GetOrDefault(MemtlyConfiguration.Gallery.Download, true, gallery.Id) || _identity.IsPrivilegedUser(User)
@@ -225,7 +225,12 @@ namespace Memtly.Core.Controllers
                     var galleryItem = await _database.GetGalleryItem(id);
                     if (galleryItem != null)
                     {
-                        var userId = _identity.IsValid(User) ? _identity.GetUserId(User) : 0;
+                        var userId = _identity.IsValid(User) ? (int?)_identity.GetUserId(User) : null;
+                        var guestName = userId == null ? HttpContext.Session.GetString(SessionKey.Viewer.Identity) : null;
+                        if (userId == null && string.IsNullOrWhiteSpace(guestName))
+                        {
+                            guestName = "Anonymous";
+                        }
 
                         long likes = 0;
                         switch (action.ToLower())
@@ -235,7 +240,8 @@ namespace Memtly.Core.Controllers
                                 {
                                     GalleryId = galleryItem.GalleryId,
                                     GalleryItemId = galleryItem.Id,
-                                    UserId = userId
+                                    UserId = userId,
+                                    GuestName = guestName
                                 });
                                 break;
                             case "unlike":
@@ -243,7 +249,8 @@ namespace Memtly.Core.Controllers
                                 {
                                     GalleryId = galleryItem.GalleryId,
                                     GalleryItemId = galleryItem.Id,
-                                    UserId = userId
+                                    UserId = userId,
+                                    GuestName = guestName
                                 });
                                 break;
                         }

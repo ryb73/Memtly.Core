@@ -7,6 +7,7 @@
         public GalleryItem? GalleryItem { get; set; }
         public int? UserId { get; set; }
         public User? User { get; set; }
+        public string? GuestName { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
     }
 }
