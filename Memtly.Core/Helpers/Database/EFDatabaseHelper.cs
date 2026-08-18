@@ -453,13 +453,18 @@ namespace Memtly.Core.Helpers.Database
                         case GalleryOrder.Random:
                             query = query.ThenBy(gi => EF.Functions.Random());
                             break;
+                        case GalleryOrder.Likes:
+                            query = query.ThenByDescending(gi => gi.Likes!.Count());
+                            break;
                         default:
                             query = order == GalleryOrder.Ascending ? query.ThenBy(gi => gi.CreatedAt) : query.ThenByDescending(gi => gi.CreatedAt);
                             break;
                     }
                     break;
                 default:
-                    query = order == GalleryOrder.Ascending ? query.ThenBy(gi => gi.CreatedAt) : query.ThenByDescending(gi => gi.CreatedAt);
+                    query = order == GalleryOrder.Likes
+                        ? query.ThenByDescending(gi => gi.Likes!.Count())
+                        : (order == GalleryOrder.Ascending ? query.ThenBy(gi => gi.CreatedAt) : query.ThenByDescending(gi => gi.CreatedAt));
                     break;
             }
 

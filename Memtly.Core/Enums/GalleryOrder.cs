@@ -4,6 +4,7 @@
     {
         Ascending,
         Descending,
-        Random
+        Random,
+        Likes
     }
 }

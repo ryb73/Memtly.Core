@@ -5,6 +5,7 @@
 @{
     var userPermissions = _identity.GetUserPermissions(User);
     var qrCodeEnabled = await _settings.GetOrDefault(MemtlyConfiguration.Gallery.QRCode.Enabled, true, Model?.Gallery?.Id);
+    var likesEnabled = await _settings.GetOrDefault(MemtlyConfiguration.Gallery.Likes, true, Model?.Gallery?.Id);
     var excludeFromUrls = new List<string>() { "partial" };
 }
 
@@ -106,6 +107,7 @@
                     <div class="dropdown-menu">
                         @foreach (GalleryOrder order in Enum.GetValues(typeof(GalleryOrder)))
                         {
+                            if (order == GalleryOrder.Likes && !likesEnabled) { continue; }
                             var append = new List<KeyValuePair<string, string>>()
                             {
                                 new KeyValuePair<string, string>("order", ((int)order).ToString())
