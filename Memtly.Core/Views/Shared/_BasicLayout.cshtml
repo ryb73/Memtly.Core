@@ -18,7 +18,7 @@
         logo = "/images/logo.png";
     }
 
-    string theme = await _settings.GetOrDefault(MemtlyConfiguration.Themes.Default, Themes.AutoDetect.ToString().ToLower());
+    string theme = (await _settings.GetOrDefault(MemtlyConfiguration.Themes.Default, Themes.AutoDetect.ToString())).ToLower();
 
     try
     {
@@ -84,7 +84,7 @@
         {
             if (MemtlyCore.Version == MemtlyVersion.Community)
             {
-                <link rel="stylesheet" href="@WebpackHelper.GetAssetPath("themes/blue.css")" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" asp-append-version="true" />    
+                <link rel="stylesheet" href="@WebpackHelper.GetAssetPath("themes/blue.css")" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" asp-append-version="true" />
                 <link rel="stylesheet" href="@WebpackHelper.GetAssetPath("themes/darkblue.css")" media="(prefers-color-scheme: dark)" asp-append-version="true" />
             }
             else

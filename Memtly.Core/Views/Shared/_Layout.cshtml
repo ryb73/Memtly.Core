@@ -26,7 +26,7 @@
 
     var viewMode = ViewBag?.ViewMode != null ? ViewBag.ViewMode : ViewMode.Default;
 
-    string theme = await _settings.GetOrDefault(MemtlyConfiguration.Themes.Default, Themes.AutoDetect.ToString().ToLower());
+    string theme = (await _settings.GetOrDefault(MemtlyConfiguration.Themes.Default, Themes.AutoDetect.ToString())).ToLower();
 
     try
     {
