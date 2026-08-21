@@ -540,11 +540,11 @@ label {
 }
 
 .pagination .page-item.active .page-link {
-    background-color: rgba(var(--primary-1), 0.5) !important;
-    border-color: rgba(var(--primary-1), 0.75) !important;
+    background-color: rgba(var(--primary-2), 0.5) !important;
+    border-color: rgba(var(--primary-2), 0.75) !important;
 }
 
 .pagination .page-item:hover .page-link {
-    background-color: rgba(var(--primary-1), 0.2) !important;
-    border-color: rgba(var(--primary-1), 0.75) !important;
+    background-color: rgba(var(--primary-2), 0.2) !important;
+    border-color: rgba(var(--primary-2), 0.75) !important;
 }
