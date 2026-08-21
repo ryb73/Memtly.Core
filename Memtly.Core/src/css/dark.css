@@ -8,10 +8,14 @@
     --text-default: 255, 255, 255;
     --text-contrast: 255, 255, 255;
     /* Navbar */
-    --navbar-bg: 31, 41, 55;
+    /* --navbar-bg: 31, 41, 55; */
+    /* #491A1B */
+    --navbar-bg: 73, 26, 27;
     --navbar-text: 255, 255, 255;
     /* Background */
-    --body-bg: 53, 62, 75;
+    /* --body-bg: 53, 62, 75; */
+    /* #491A1B */
+    --body-bg: 73, 26, 27;
     /* Colour Scheme (Danger) */
     --danger-1: 239, 68, 68;
     /* Colour Scheme (Disabled) */

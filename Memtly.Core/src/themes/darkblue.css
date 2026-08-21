@@ -2,10 +2,12 @@
 
 :root {
     /* Colour Scheme (Primary) */
-    --primary-1: 29, 78, 216;
-    --primary-2: 37, 99, 235;
-    --primary-3: 59, 130, 246;
+    --primary-1: 255, 255, 255;
+    /* --primary-2: 33, 33, 33; */
+    /* #AD2B80 */
+    --primary-2: 173, 43, 128;
+    --primary-3: 255, 255, 255;
     /* Colour Scheme (Secondary) */
-    --secondary-1: 79, 70, 229;
-    --secondary-2: 99, 102, 241;
+    --secondary-1: 255, 255, 255;
+    --secondary-2: 255, 255, 0;
 }
