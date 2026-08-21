@@ -134,7 +134,6 @@
             <div class="container px-3 px-lg-5 @(viewMode == ViewMode.Presentation || viewMode == ViewMode.Slideshow ? "justify-content-center" : string.Empty)">
                 <a class="navbar-brand" href="@(await _settings.GetOrDefault(MemtlyConfiguration.Basic.HomeLink, true) ? "/" : "#")">
                     <img class="navbar-logo" src="@logo" onerror="this.onerror=null;this.src='/_content/Memtly.Core/images/logo.png';" />
-                    <span class="navbar-title">@title</span>
                 </a>
                 
                 @if (viewMode != ViewMode.Presentation && viewMode != ViewMode.Slideshow)
