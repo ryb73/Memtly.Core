@@ -135,7 +135,7 @@
                 <a class="navbar-brand" href="@(await _settings.GetOrDefault(MemtlyConfiguration.Basic.HomeLink, true) ? "/" : "#")">
                     <img class="navbar-logo" src="@logo" onerror="this.onerror=null;this.src='/_content/Memtly.Core/images/logo.png';" />
                 </a>
-                
+
                 @if (viewMode != ViewMode.Presentation && viewMode != ViewMode.Slideshow)
                 {
                     <div class="navbar-options presentation-hidden">
@@ -167,7 +167,7 @@
                                     <i class="change-identity fas fa-id-card fa-1x text-secondary pointer mx-2" data-identity-name="@Context?.Session.GetString(SessionKey.Viewer.Identity)" @(requireEmail ? $"data-identity-email={Context?.Session.GetString(SessionKey.Viewer.EmailAddress)}" : string.Empty)></i>
                                 </span>
                             }
-                            
+
                             <!-- ( Set MFA ) -->
                             @if (_identity.IsValid(User) && !string.IsNullOrWhiteSpace(Context?.Request.Path.Value) && Context.Request.Path.Value.Contains("/Account", StringComparison.OrdinalIgnoreCase) && !Context.Request.Path.Value.Contains("/Login", StringComparison.OrdinalIgnoreCase) && !Context.Request.Path.Value.Contains("/Register", StringComparison.OrdinalIgnoreCase) && !Context.Request.Path.Value.Contains("/ForgotPassword", StringComparison.OrdinalIgnoreCase))
                             {
@@ -250,12 +250,6 @@
         <!-- GDPR Cookie Consent -->
         <partial name="_CookieConsentPartial" />
 
-        <!-- Sponsors Button -->
-        @if (MemtlyCore.Version == MemtlyVersion.Community)
-        {
-            <i class="btn-show-sponsors fas fa-bolt"></i>
-        }
-        
         <!-- Webpack -->
         <script src="@WebpackHelper.GetAssetPath("runtime.js")" asp-append-version="true"></script>
         <script src="@WebpackHelper.GetAssetPath("main.js")" asp-append-version="true"></script>
