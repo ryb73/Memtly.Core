@@ -27,9 +27,9 @@
             public class Headers
             {
                 public const string Enabled = "Memtly:Security:Headers:Enabled";
-                public const string XFrameOptions = "Memtly:Security:Headers:X_Frame_Options";
                 public const string XContentTypeOptions = "Memtly:Security:Headers:X_Content_Type_Options";
                 public const string CSP = "Memtly:Security:Headers:CSP";
+                public const string FrameAncestors = "Memtly:Security:Headers:Frame_Ancestors";
             }
 
             public class MultiFactor
