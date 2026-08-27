@@ -3,7 +3,7 @@
 // cached shell entries wrong/incomplete - activate() only evicts caches
 // under a *different* name, so a stale entry under an unchanged name
 // otherwise lingers until something happens to overwrite that exact URL.
-export const SHELL_CACHE_NAME = "memtly-shell-v6";
+export const SHELL_CACHE_NAME = "memtly-shell-v7";
 
 // The service worker's fetch handler only caches a navigation once it is
 // active and *controlling* the page, which is never true for the very first
