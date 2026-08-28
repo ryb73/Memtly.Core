@@ -57,16 +57,23 @@ async function init() {
 }
 
 function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
+  if (!("serviceWorker" in navigator)) {
+    console.warn(`Service worker not supported`);
+    return;
+  }
 
   navigator.serviceWorker
     .register("/service-worker.js", { scope: "/" })
     .then((registration) => {
-      if (!("sync" in registration)) return;
+      console.info(`Service worker registered`);
 
-      onQueueChanged(() => {
-        registration.sync.register("memtly-upload-queue-flush").catch(() => {});
-      });
+      if ("sync" in registration) {
+        onQueueChanged(() => {
+          registration.sync
+            .register("memtly-upload-queue-flush")
+            .catch(() => {});
+        });
+      }
     })
     .catch((err) => console.warn("Service worker registration failed", err));
 }
